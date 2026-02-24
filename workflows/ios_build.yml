@@ -9,6 +9,11 @@ jobs:
   build-ios:
     runs-on: macos-latest
 
+    # Run all commands inside your project subfolder
+    defaults:
+      run:
+        working-directory: decentralized_attendance
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
