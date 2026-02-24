@@ -3,7 +3,7 @@ name: Flutter iOS Build
 on:
   push:
     branches:
-      - main   # Trigger build on push to main
+      - main
 
 jobs:
   build-ios:
@@ -25,7 +25,7 @@ jobs:
         run: flutter build ios --release --no-codesign
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4   # <-- Updated from v3 to v4
         with:
           name: ios-build
           path: build/ios/iphoneos
