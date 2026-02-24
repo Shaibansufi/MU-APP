@@ -14,25 +14,43 @@ jobs:
         working-directory: decentralized_attendance
 
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout code
+      # 1️⃣ Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Flutter 3.13.6 (comes with Dart 3.11+)
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      # 2️⃣ Cache Flutter SDK
+      - name: Cache Flutter SDK
+        id: cache-flutter
+        uses: actions/cache@v3
         with:
-          flutter-version: 3.13.6
-          channel: stable
+          path: ~/flutter
+          key: flutter-sdk-v3.13.6
 
-      # 3️⃣ Verify Flutter & Dart versions
-      - name: Flutter and Dart versions
+      # 3️⃣ Install Flutter if cache missed
+      - name: Install Flutter 3.13.6
+        if: steps.cache-flutter.outputs.cache-hit != 'true'
+        run: |
+          curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_3.13.6-stable.zip -o flutter.zip
+          unzip flutter.zip -d $HOME
+          mv $HOME/flutter $HOME/flutter
+        shell: bash
+
+      # 4️⃣ Add Flutter to PATH
+      - name: Add Flutter to PATH
+        run: echo "$HOME/flutter/bin" >> $GITHUB_PATH
+
+      # 5️⃣ Verify Flutter & Dart versions
+      - name: Flutter & Dart version
         run: |
           flutter --version
           dart --version
 
-      # 4️⃣ Cache Flutter dependencies
-      - name: Cache Flutter dependencies
+      # 6️⃣ Disable analytics
+      - name: Disable Flutter Analytics
+        run: flutter config --no-analytics
+
+      # 7️⃣ Cache Flutter dependencies
+      - name: Cache dependencies
         uses: actions/cache@v3
         with:
           path: |
@@ -42,21 +60,21 @@ jobs:
           restore-keys: |
             flutter-deps-
 
-      # 5️⃣ Install dependencies
-      - name: Get Flutter dependencies
+      # 8️⃣ Install project dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      # 6️⃣ Build iOS release (no codesign)
+      # 9️⃣ Build iOS release (no codesign)
       - name: Build iOS
         run: flutter build ios --release --no-codesign
 
-      # 7️⃣ Package Runner.app as zip
+      # 🔟 Package Runner.app as zip
       - name: Package Runner.app
         run: |
           cd build/ios/iphoneos
           zip -r ../../ios-build.zip Runner.app
 
-      # 8️⃣ Create .ipa from Runner.app
+      # 1️⃣1️⃣ Create .ipa from Runner.app
       - name: Package .ipa
         run: |
           mkdir -p Payload
@@ -64,7 +82,7 @@ jobs:
           zip -r ios-build.ipa Payload
           rm -rf Payload
 
-      # 9️⃣ Upload artifacts
+      # 1️⃣2️⃣ Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
