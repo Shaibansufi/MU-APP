@@ -18,37 +18,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Cache Flutter SDK
-      - name: Cache Flutter SDK
-        id: cache-flutter
-        uses: actions/cache@v3
-        with:
-          path: ~/flutter
-          key: flutter-sdk-v3.13.6
-
-      # 3️⃣ Install Flutter if cache missed
+      # 2️⃣ Install Flutter manually (3.13.6 with Dart 3.11+)
       - name: Install Flutter 3.13.6
-        if: steps.cache-flutter.outputs.cache-hit != 'true'
         run: |
           curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_3.13.6-stable.zip -o flutter.zip
           unzip flutter.zip -d $HOME
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
-      # 4️⃣ Add Flutter to PATH
-      - name: Add Flutter to PATH
-        run: echo "$HOME/flutter/bin" >> $GITHUB_PATH
-
-      # 5️⃣ Verify Flutter & Dart versions
+      # 3️⃣ Verify Flutter & Dart versions
       - name: Flutter & Dart version
         run: |
           flutter --version
           dart --version
 
-      # 6️⃣ Disable Flutter Analytics
+      # 4️⃣ Disable Flutter Analytics
       - name: Disable Flutter Analytics
         run: flutter config --no-analytics
 
-      # 7️⃣ Cache Flutter dependencies
+      # 5️⃣ Cache Flutter dependencies
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -59,21 +47,21 @@ jobs:
           restore-keys: |
             flutter-deps-
 
-      # 8️⃣ Install project dependencies
+      # 6️⃣ Install project dependencies
       - name: Flutter pub get
         run: flutter pub get
 
-      # 9️⃣ Build iOS release (no codesign)
+      # 7️⃣ Build iOS release (no codesign)
       - name: Build iOS
         run: flutter build ios --release --no-codesign
 
-      # 🔟 Package Runner.app as zip
+      # 8️⃣ Package Runner.app as zip
       - name: Package Runner.app
         run: |
           cd build/ios/iphoneos
           zip -r ../../ios-build.zip Runner.app
 
-      # 1️⃣1️⃣ Create .ipa from Runner.app
+      # 9️⃣ Create .ipa from Runner.app
       - name: Package .ipa
         run: |
           mkdir -p Payload
@@ -81,7 +69,7 @@ jobs:
           zip -r ios-build.ipa Payload
           rm -rf Payload
 
-      # 1️⃣2️⃣ Upload artifacts
+      # 🔟 Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
