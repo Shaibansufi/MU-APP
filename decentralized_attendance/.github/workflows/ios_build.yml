@@ -21,11 +21,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS
+      - name: Build iOS (no code signing)
         run: flutter build ios --release --no-codesign
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4   # <-- Updated from v3 to v4
+      - name: Package .app as zip
+        run: |
+          cd build/ios/iphoneos
+          zip -r ../../ios-build.zip Runner.app
+
+      - name: Upload iOS build artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: build/ios/iphoneos
+          path: build/ios/ios-build.zip
