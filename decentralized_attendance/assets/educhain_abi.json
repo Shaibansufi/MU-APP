@@ -3,7 +3,7 @@
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "_prn",
+				"name": "prn",
 				"type": "string"
 			}
 		],
@@ -16,32 +16,37 @@
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "_prn",
+				"name": "prn",
 				"type": "string"
 			},
 			{
 				"internalType": "string",
-				"name": "_mobile",
+				"name": "mobile",
 				"type": "string"
 			},
 			{
 				"internalType": "string",
-				"name": "_name",
+				"name": "name",
 				"type": "string"
 			},
 			{
 				"internalType": "string",
-				"name": "_role",
+				"name": "role",
 				"type": "string"
 			},
 			{
 				"internalType": "string",
-				"name": "_department",
+				"name": "department",
 				"type": "string"
 			},
 			{
 				"internalType": "string",
-				"name": "_college",
+				"name": "college",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "deviceAddress",
 				"type": "string"
 			}
 		],
@@ -54,7 +59,7 @@
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "_prn",
+				"name": "prn",
 				"type": "string"
 			}
 		],
@@ -73,7 +78,12 @@
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "_mobile",
+				"name": "mobile",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "deviceAddress",
 				"type": "string"
 			}
 		],

@@ -3,12 +3,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../services/biometric_service.dart';
 import '../services/blockchain_service.dart';
+import '../utils/utils.dart'; // <-- import utils for getDeviceId
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final BlockchainService blockchainService;
   const LoginScreen({Key? key, required this.blockchainService})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,8 +17,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _mobileController = TextEditingController();
-  final TextEditingController _prnCheckController =
-      TextEditingController(); // New for debug
+  final TextEditingController _prnCheckController = TextEditingController(); 
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
@@ -47,9 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -59,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      /// STEP 1: Biometric Authentication
+      // Step 1: Biometric Authentication
       bool isAuthenticated = await BiometricService().authenticate();
       if (!isAuthenticated) {
         _showMessage("Biometric Authentication Failed");
@@ -67,14 +65,17 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      /// STEP 2: Fetch PRN from blockchain
-      String mobile = _mobileController.text.trim();
-      // 🔹 Add debug print here
-      print(
-        "Logging in with mobile----------------------------->: '$mobile'",
-      ); // <-- shows exactly what's sent
+      // Step 2: Get Device ID from utils.dart
+      String deviceId = await getDeviceId();
 
-      String prn = await widget.blockchainService.loginByMobile(mobile);
+      // Step 3: Fetch PRN from blockchain using mobile + device
+      String mobile = _mobileController.text.trim();
+      print("Logging in with mobile: $mobile, deviceId: $deviceId"); // debug log
+
+      String prn = await widget.blockchainService.loginByMobile(
+        mobile,
+        deviceId, // <-- device-bound login
+      );
 
       if (prn.isEmpty) {
         _showMessage("Mobile number not registered ❌");
@@ -82,20 +83,19 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      /// STEP 3: Navigate to Dashboard
+      // Step 4: Navigate to Dashboard
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => DashboardScreen(
             userName: mobile,
             userId: prn,
-            role: "Student", // later you can fetch real role
+            role: "Student",
           ),
         ),
       );
     } catch (e) {
       String errorMessage = e.toString();
-
       if (errorMessage.contains("value out of range")) {
         _showMessage(
           "Blockchain decoding error.\nPlease restart the app and try again.",
@@ -134,7 +134,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: IntrinsicHeight(
           child: Stack(
             children: [
-              // Background image
               Positioned.fill(
                 child: Image.asset(
                   "assets/images/university.png",
@@ -147,7 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Rounded blockchain logo
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -161,9 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: const CircleAvatar(
                       radius: 60,
-                      backgroundImage: AssetImage(
-                        "assets/images/blockchain.png",
-                      ),
+                      backgroundImage: AssetImage("assets/images/blockchain.png"),
                       backgroundColor: Colors.white,
                     ),
                   ),
@@ -178,8 +174,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 40),
-
-                  // Login Card
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Container(
@@ -199,7 +193,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         key: _formKey,
                         child: Column(
                           children: [
-                            // Mobile Input
                             TextFormField(
                               controller: _mobileController,
                               keyboardType: TextInputType.phone,
@@ -212,17 +205,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                             ),
                             const SizedBox(height: 20),
-
-                            // PRN Input for debug
                             TextFormField(
                               controller: _prnCheckController,
-                              decoration: _inputDecoration(
-                                "Enter PRN to check (optional)",
-                              ),
+                              decoration: _inputDecoration("Enter PRN to check (optional)"),
                             ),
                             const SizedBox(height: 20),
-
-                            // Login Button
                             GestureDetector(
                               onTap: _isLoading ? null : _loginUser,
                               child: Container(
@@ -236,9 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 child: _isLoading
-                                    ? const CircularProgressIndicator(
-                                        color: Colors.white,
-                                      )
+                                    ? const CircularProgressIndicator(color: Colors.white)
                                     : const Text(
                                         "Login Securely",
                                         style: TextStyle(
@@ -250,7 +235,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
-
                             TextButton(
                               onPressed: () {
                                 Navigator.pushNamed(context, '/register');

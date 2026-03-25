@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:web3dart/web3dart.dart';
 import '../services/blockchain_service.dart';
 
 class TestBlockchainScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _TestBlockchainScreenState extends State<TestBlockchainScreen> {
                       role: "Student",
                       department: "CS",
                       college: "XYZ College",
+                      deviceAddress: "0x0000000000000000000000000000000000000000",
                     );
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("User Registered TX: $tx")),

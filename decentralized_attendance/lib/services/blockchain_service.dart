@@ -12,40 +12,34 @@ class BlockchainService {
 
   BlockchainService() {
     _client = Web3Client(
-      "http://192.168.31.24:7545", // Use this for Android emulator
+      "http://192.168.3.230:7545", // Ganache RPC
       Client(),
     );
 
     _credentials = EthPrivateKey.fromHex(
-      "0xdf0372d1c3a7d1fe28fb6ce13a27309c52100d9324b00535ad9a518614e71cbb",
+      "0x54d42ffc99845453fa9b7ecf7cf3704fe8bf3ce43d5fdb92def3c8fdc6699822",
     );
   }
 
-  // =====================================================
-  // INIT CONTRACT
-  // =====================================================
-
+  // Initialize contract
   Future<void> init() async {
     if (_isInitialized) return;
 
     final abiString = await rootBundle.loadString("assets/educhain_abi.json");
 
     _contractAddress = EthereumAddress.fromHex(
-      "0xc65CB0ceFFF24209942D967BCbf6677A7634E422",
+      "0xCa655c606D40C1973d295155389bb3983db83951",
     );
 
     _contract = DeployedContract(
-      ContractAbi.fromJson(abiString, "EduChainSimple"),
+      ContractAbi.fromJson(abiString, "EduChainSecure"),
       _contractAddress,
     );
 
     _isInitialized = true;
   }
 
-  // =====================================================
-  // REGISTER
-  // =====================================================
-
+  // REGISTER USER
   Future<String> registerUser({
     required String prn,
     required String mobile,
@@ -53,6 +47,7 @@ class BlockchainService {
     required String role,
     required String department,
     required String college,
+    required String deviceAddress, // string
   }) async {
     await init();
 
@@ -63,7 +58,7 @@ class BlockchainService {
       Transaction.callContract(
         contract: _contract,
         function: function,
-        parameters: [prn, mobile, name, role, department, college],
+        parameters: [prn, mobile, name, role, department, college, deviceAddress],
         maxGas: 300000,
       ),
       chainId: 1337,
@@ -72,37 +67,24 @@ class BlockchainService {
     return txHash;
   }
 
-  // =====================================================
-  // LOGIN
-  // =====================================================
-
-  Future<String> loginByMobile(String mobile) async {
+  // LOGIN USER
+  Future<String> loginByMobile(String mobile, String deviceAddress) async {
     await init();
 
-    try {
-      final function = _contract.function("loginByMobile");
+    final function = _contract.function("loginByMobile");
 
-      final result = await _client.call(
-        contract: _contract,
-        function: function,
-        params: [mobile],
-      );
+    final result = await _client.call(
+      contract: _contract,
+      function: function,
+      params: [mobile, deviceAddress],
+    );
 
-      print("Blockchain login result: $result");
+    if (result.isEmpty) return "";
 
-      if (result.isEmpty) return "";
-
-      return result.first.toString();
-    } catch (e) {
-      print("LOGIN ERROR: $e");
-      rethrow; // IMPORTANT
-    }
+    return result.first.toString();
   }
 
-  // =====================================================
   // MARK ATTENDANCE
-  // =====================================================
-
   Future<String> markAttendance(String prn) async {
     await init();
 
@@ -122,10 +104,7 @@ class BlockchainService {
     return txHash;
   }
 
-  // =====================================================
   // VIEW ATTENDANCE
-  // =====================================================
-
   Future<List<DateTime>> viewAttendance(String prn) async {
     await init();
 
@@ -142,11 +121,7 @@ class BlockchainService {
     List<dynamic> timestamps = result.first;
 
     return timestamps
-        .map<DateTime>(
-          (ts) => DateTime.fromMillisecondsSinceEpoch(
-            (ts as BigInt).toInt() * 1000,
-          ),
-        )
+        .map<DateTime>((ts) => DateTime.fromMillisecondsSinceEpoch((ts as BigInt).toInt() * 1000))
         .toList();
   }
 }

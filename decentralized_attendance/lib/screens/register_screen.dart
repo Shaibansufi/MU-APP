@@ -1,14 +1,17 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../services/biometric_service.dart';
 import '../services/blockchain_service.dart';
 import 'login_screen.dart';
+import '../utils/utils.dart';
+
 
 class RegisterScreen extends StatefulWidget {
-  final BlockchainService blockchainService; //
+  final BlockchainService blockchainService;
   const RegisterScreen({Key? key, required this.blockchainService})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -72,9 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -84,7 +85,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      /// Step 1: Biometric Authentication
+      // Step 1: Get Device ID
+      String deviceId = await getDeviceId();
+
+      // Step 2: Biometric Authentication
       bool isAuthenticated = await BiometricService().authenticate();
       if (!isAuthenticated) {
         _showMessage("Biometric Authentication Failed");
@@ -92,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      /// Step 2: Blockchain Registration
+      // Step 3: Blockchain Registration with Device ID
       await widget.blockchainService.registerUser(
         prn: _prnController.text.trim(),
         mobile: _mobileController.text.trim(),
@@ -100,11 +104,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         role: _selectedRole,
         department: _departmentController.text.trim(),
         college: _collegeController.text.trim(),
+        deviceAddress: deviceId,
       );
-      print("Registering mobile: '${_mobileController.text.trim()}'");
+      print("Registering mobile: '${_mobileController.text.trim()}' with device: $deviceId");
       _showMessage("Registration Successful! ✅");
 
-      /// Step 3: Navigate to Login
+      // Step 4: Navigate to Login
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -122,15 +127,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       String errorMessage = e.toString();
 
-      // Handle common blockchain errors nicely
       if (errorMessage.contains("User already registered")) {
         _showMessage("PRN / Employee ID already registered ❌");
       } else if (errorMessage.contains("Mobile already registered")) {
         _showMessage("Mobile number already registered ❌");
       } else if (errorMessage.contains("value out of range")) {
         _showMessage(
-          "Blockchain decoding error. Please restart app and try again.",
-        );
+            "Blockchain decoding error. Please restart app and try again.");
       } else {
         _showMessage("Registration Failed ❌\n$errorMessage");
       }
@@ -155,7 +158,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: IntrinsicHeight(
           child: Stack(
             children: [
-              /// Background
               Positioned.fill(
                 child: Image.asset(
                   "assets/images/university.png",
@@ -165,12 +167,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Positioned.fill(
                 child: Container(color: Colors.white.withOpacity(0.90)),
               ),
-
-              /// Form Content
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  /// Blockchain Logo
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -184,9 +183,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: const CircleAvatar(
                       radius: 55,
-                      backgroundImage: AssetImage(
-                        "assets/images/blockchain.png",
-                      ),
+                      backgroundImage:
+                          AssetImage("assets/images/blockchain.png"),
                       backgroundColor: Colors.white,
                     ),
                   ),
@@ -196,8 +194,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 30),
-
-                  /// Registration Form Card
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Container(
@@ -217,9 +213,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         key: _formKey,
                         child: Column(
                           children: [
-                            /// Role
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedRole,
+                              value: _selectedRole,
                               decoration: _inputDecoration("Select Role"),
                               items: ["Student", "Teacher"]
                                   .map(
@@ -233,68 +228,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   setState(() => _selectedRole = value!),
                             ),
                             const SizedBox(height: 18),
-
-                            /// PRN / Employee ID
                             TextFormField(
                               controller: _prnController,
                               decoration: _inputDecoration(
-                                _selectedRole == "Student"
-                                    ? "PRN Number"
-                                    : "Employee ID",
-                              ),
-                              validator: (value) =>
-                                  value == null || value.isEmpty
+                                  _selectedRole == "Student"
+                                      ? "PRN Number"
+                                      : "Employee ID"),
+                              validator: (value) => value == null || value.isEmpty
                                   ? "This field is required"
                                   : null,
                             ),
                             const SizedBox(height: 18),
-
-                            /// Mobile
                             TextFormField(
                               controller: _mobileController,
                               keyboardType: TextInputType.phone,
                               decoration: _inputDecoration("Mobile Number"),
-                              validator: (value) =>
-                                  value == null || value.length != 10
+                              validator: (value) => value == null ||
+                                      value.length != 10
                                   ? "Enter valid 10-digit mobile"
                                   : null,
                             ),
                             const SizedBox(height: 18),
-
-                            /// Name
                             TextFormField(
                               controller: _nameController,
                               decoration: _inputDecoration("Full Name"),
-                              validator: (value) =>
-                                  value == null || value.isEmpty
+                              validator: (value) => value == null || value.isEmpty
                                   ? "Enter your name"
                                   : null,
                             ),
                             const SizedBox(height: 18),
-
-                            /// Department
                             TextFormField(
                               controller: _departmentController,
                               decoration: _inputDecoration("Department"),
-                              validator: (value) =>
-                                  value == null || value.isEmpty
+                              validator: (value) => value == null || value.isEmpty
                                   ? "Enter Department"
                                   : null,
                             ),
                             const SizedBox(height: 18),
-
-                            /// College
                             TextFormField(
                               controller: _collegeController,
                               decoration: _inputDecoration("College Name"),
-                              validator: (value) =>
-                                  value == null || value.isEmpty
+                              validator: (value) => value == null || value.isEmpty
                                   ? "Enter College Name"
                                   : null,
                             ),
                             const SizedBox(height: 30),
-
-                            /// Register Button
                             GestureDetector(
                               onTap: _isLoading ? null : _registerUser,
                               child: Container(
