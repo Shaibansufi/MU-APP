@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../services/blockchain_service.dart';
+import '../services/teacher_beacon_service.dart';
+import '../services/student_scanner_service.dart';
 
 class DashboardScreen extends StatelessWidget {
   final String userName;
@@ -35,7 +37,8 @@ class DashboardScreen extends StatelessWidget {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -64,28 +67,62 @@ class DashboardScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: ListView(
               children: [
-                if (role == "Teacher")
+
+                // ================= TEACHER =================
+                if (role.trim().toLowerCase() == "teacher") ...[
                   _actionCard(
                     context: context,
                     title: "Mark Attendance",
-                    subtitle: "Record attendance on blockchain",
+                    subtitle: "Record on blockchain",
                     icon: Icons.check_circle_outline,
                     onTap: () async {
-                      String tx = await BlockchainService().markAttendance(
-                        userId,
-                      );
+                      String tx =
+                          await BlockchainService().markAttendance(userId);
                       _showMessage(context, "Attendance marked!\nTX: $tx");
                     },
                   ),
-                if (role == "Teacher")
+
                   _actionCard(
                     context: context,
                     title: "View Attendance",
-                    subtitle: "Check student attendance records",
+                    subtitle: "Check blockchain records",
                     icon: Icons.bar_chart,
                     onTap: () async {
-                      var records = await BlockchainService().viewAttendance(userId);
+                      var records =
+                          await BlockchainService().viewAttendance(userId);
                       _showMessage(context, "Attendance: $records");
+                    },
+                  ),
+
+                  _actionCard(
+                    context: context,
+                    title: "Start Attendance (BLE)",
+                    subtitle: "Broadcast session to students",
+                    icon: Icons.bluetooth,
+                    onTap: () async {
+                      await TeacherBeaconService().startBeacon("CS101");
+                      _showMessage(context, "📡 BLE Attendance Started");
+                    },
+                  ),
+                ],
+
+                // ================= STUDENT =================
+                if (role.trim().toLowerCase() == "student")
+                  _actionCard(
+                    context: context,
+                    title: "Scan & Mark Attendance",
+                    subtitle: "Detect teacher session via BLE",
+                    icon: Icons.radar,
+                    onTap: () {
+                      StudentScannerService().startScan((sessionId) {
+                        _showMessage(
+                          context,
+                          "📡 Session Found!\nMarking Attendance\nSession: $sessionId",
+                        );
+
+                        // 👉 SMART CONTRACT HOOK
+                        // BlockchainService().markAttendance(userId, sessionId);
+                      });
                     },
                   ),
               ],
@@ -113,24 +150,17 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Welcome,",
-            style: TextStyle(color: Colors.white.withOpacity(0.9)),
-          ),
+          Text("Welcome,",
+              style: TextStyle(color: Colors.white.withOpacity(0.9))),
           const SizedBox(height: 5),
-          Text(
-            userName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(userName,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 5),
-          Text(
-            "$role Dashboard",
-            style: TextStyle(color: Colors.white.withOpacity(0.85)),
-          ),
+          Text("$role Dashboard",
+              style: TextStyle(color: Colors.white.withOpacity(0.85))),
         ],
       ),
     );
@@ -171,13 +201,9 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 4),
                   Text(subtitle, style: const TextStyle(fontSize: 13)),
                 ],

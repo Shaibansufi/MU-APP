@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../services/biometric_service.dart';
 import '../services/blockchain_service.dart';
-import '../utils/utils.dart'; // <-- import utils for getDeviceId
+import '../utils/utils.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _mobileController = TextEditingController();
-  final TextEditingController _prnCheckController = TextEditingController(); 
+  final TextEditingController _prnCheckController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
@@ -47,75 +47,72 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
-Future<void> _loginUser() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  setState(() => _isLoading = true);
-
-  try {
-    // 🔐 Step 1: Biometric Authentication
-    bool isAuthenticated = await BiometricService().authenticate();
-    if (!isAuthenticated) {
-      _showMessage("Biometric Authentication Failed");
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    String mobile = _mobileController.text.trim();
-    String prn = _prnCheckController.text.trim();
-
-    if (prn.isEmpty) {
-      _showMessage("Please enter PRN ❌");
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    print("Login with mobile: $mobile, PRN: $prn");
-
-    // 🔗 Step 2: Blockchain login (wallet-based)
-    String result = await widget.blockchainService.loginByMobile(
-      mobile,
-      prn,
-    );
-
-    // ❗ Step 3: Check result (IMPORTANT FIX)
-    if (result.isEmpty || result == "false") {
-      _showMessage("Invalid credentials ❌");
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    // ✅ Step 4: Navigate
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DashboardScreen(
-          userName: mobile,
-          userId: prn,
-          role: "Student",
-        ),
-      ),
-    );
-  } catch (e) {
-    String errorMessage = e.toString();
-
-    if (errorMessage.contains("not registered")) {
-      _showMessage("User not found on this device ❌");
-    } else if (errorMessage.contains("value out of range")) {
-      _showMessage(
-        "Blockchain decoding error.\nRestart app and try again.",
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
       );
-    } else {
-      _showMessage("Login Failed ❌\n$errorMessage");
     }
   }
 
-  setState(() => _isLoading = false);
-}
+  Future<void> _loginUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      bool isAuthenticated = await BiometricService().authenticate();
+      if (!isAuthenticated) {
+        _showMessage("Biometric Authentication Failed");
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      String mobile = _mobileController.text.trim();
+      String prn = _prnCheckController.text.trim();
+
+      if (prn.isEmpty) {
+        _showMessage("Please enter PRN ❌");
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      String result = await widget.blockchainService.loginByMobile(
+        mobile,
+        prn,
+      );
+
+      if (result.isEmpty || result == "false") {
+        _showMessage("Invalid credentials ❌");
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // ✅ FIX: treat result as role (fallback safe)
+      String role = result;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(
+            userName: mobile,
+            userId: prn,
+            role: role, // ✅ FIXED HERE
+          ),
+        ),
+      );
+    } catch (e) {
+      String errorMessage = e.toString();
+
+      if (errorMessage.contains("not registered")) {
+        _showMessage("User not found on this device ❌");
+      } else if (errorMessage.contains("value out of range")) {
+        _showMessage("Blockchain decoding error.\nRestart app and try again.");
+      } else {
+        _showMessage("Login Failed ❌\n$errorMessage");
+      }
+    }
+
+    setState(() => _isLoading = false);
+  }
 
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
@@ -155,32 +152,15 @@ Future<void> _loginUser() async {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentOrange.withOpacity(0.35),
-                          blurRadius: 25,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: const CircleAvatar(
-                      radius: 60,
-                      backgroundImage: AssetImage("assets/images/blockchain.png"),
-                      backgroundColor: Colors.white,
-                    ),
+                  const CircleAvatar(
+                    radius: 60,
+                    backgroundImage: AssetImage("assets/images/blockchain.png"),
+                    backgroundColor: Colors.white,
                   ),
                   const SizedBox(height: 25),
                   const Text(
                     "EduChain Secure Login",
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "Login using your registered mobile number",
-                    style: TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 40),
                   Padding(
@@ -190,13 +170,6 @@ Future<void> _loginUser() async {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.95),
                         borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            blurRadius: 30,
-                            offset: const Offset(0, 15),
-                          ),
-                        ],
                       ),
                       child: Form(
                         key: _formKey,
@@ -216,7 +189,7 @@ Future<void> _loginUser() async {
                             const SizedBox(height: 20),
                             TextFormField(
                               controller: _prnCheckController,
-                              decoration: _inputDecoration("Enter PRN to check (optional)"),
+                              decoration: _inputDecoration("Enter PRN"),
                             ),
                             const SizedBox(height: 20),
                             GestureDetector(
@@ -232,28 +205,15 @@ Future<void> _loginUser() async {
                                 ),
                                 alignment: Alignment.center,
                                 child: _isLoading
-                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white)
                                     : const Text(
                                         "Login Securely",
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/register');
-                              },
-                              child: Text(
-                                "New user? Register here",
-                                style: TextStyle(
-                                  color: primaryBrown,
-                                  fontWeight: FontWeight.w600,
-                                ),
                               ),
                             ),
                           ],

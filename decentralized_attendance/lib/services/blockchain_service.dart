@@ -3,6 +3,7 @@ import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math';
+
 class BlockchainService {
   late Web3Client _client;
   late DeployedContract _contract;
@@ -15,24 +16,22 @@ class BlockchainService {
 
   BlockchainService() {
     _client = Web3Client(
-      "http://192.168.31.24:7545", // Ganache RPC
+      "http://192.168.31.24:7545",
       Client(),
     );
 
-    // ⚠️ Admin account (still used for other functions)
     _credentials = EthPrivateKey.fromHex(
       "0xd53afddad4c5173df201c1fa13f72628517500bf4e5a9efaaaf15ab652919606",
     );
   }
 
-  // Initialize contract
   Future<void> init() async {
     if (_isInitialized) return;
 
     final abiString = await rootBundle.loadString("assets/educhain_abi.json");
 
     _contractAddress = EthereumAddress.fromHex(
-      "0xCc2e0B48F0622F4A0fb63e91F7a36ca59d32aD3F",
+      "0xb2658b29D9Cc2795232B71AA5293d4a759cEC391",
     );
 
     _contract = DeployedContract(
@@ -43,7 +42,7 @@ class BlockchainService {
     _isInitialized = true;
   }
 
-  // ✅ UPDATED REGISTER USER (WALLET BASED)
+  // REGISTER USER
   Future<String> registerUser({
     required String prn,
     required String mobile,
@@ -51,12 +50,12 @@ class BlockchainService {
     required String role,
     required String department,
     required String college,
-    required String deviceAddress, // UI se aa raha hai (ignore karenge)
+    required String deviceAddress,
   }) async {
     await init();
 
-    // 🔐 1. Generate user wallet
-    final EthPrivateKey privateKey = EthPrivateKey.createRandom(Random.secure());
+    final EthPrivateKey privateKey =
+        EthPrivateKey.createRandom(Random.secure());
 
     final String privateKeyHex =
         "0x${privateKey.privateKeyInt.toRadixString(16)}";
@@ -64,16 +63,13 @@ class BlockchainService {
     final EthereumAddress userAddress =
         await privateKey.extractAddress();
 
-
-    // 🔐 2. Store private key locally
     await _storage.write(
       key: "pk_$prn",
       value: privateKeyHex,
     );
 
-// ⭐ 3. FUND NEW WALLET (ADD THIS PART)
     await _client.sendTransaction(
-      _credentials, // admin wallet (has ETH)
+      _credentials,
       Transaction(
         to: userAddress,
         value: EtherAmount.fromUnitAndValue(EtherUnit.ether, 1),
@@ -81,12 +77,10 @@ class BlockchainService {
       chainId: 1337,
     );
 
-// 4. Now safe to call contract
     final function = _contract.function("registerUser");
 
-    // 🚀 4. Send transaction using USER wallet (NOT admin)
     final txHash = await _client.sendTransaction(
-      privateKey, // ✅ USER wallet
+      privateKey,
       Transaction.callContract(
         contract: _contract,
         function: function,
@@ -97,7 +91,7 @@ class BlockchainService {
           role,
           department,
           college,
-          userAddress, // ✅ wallet address instead of deviceAddress
+          userAddress,
         ],
         maxGas: 300000,
       ),
@@ -107,50 +101,45 @@ class BlockchainService {
     return txHash;
   }
 
-  // LOGIN USER (UNCHANGED)
+  // LOGIN USER
+  Future<String> loginByMobile(String mobile, String prn) async {
+    await init();
 
+    final String? pk = await _storage.read(key: "pk_$prn");
 
-Future<String> loginByMobile(String mobile, String prn) async {
-  await init();
+    if (pk == null) {
+      throw Exception("User not registered on this device");
+    }
 
-  final FlutterSecureStorage storage = const FlutterSecureStorage();
+    final EthPrivateKey privateKey =
+        EthPrivateKey.fromHex(pk);
 
-  // 🔐 1. Get stored private key
-  String? pk = await storage.read(key: "pk_$prn");
+    final EthereumAddress userAddress =
+        await privateKey.extractAddress();
 
-  if (pk == null) {
-    throw Exception("User not registered on this device");
+    final function = _contract.function("login");
+
+    final result = await _client.call(
+      contract: _contract,
+      function: function,
+      params: [mobile, userAddress],
+    );
+
+    if (result.isEmpty) {
+      throw Exception("Login failed");
+    }
+
+    return result.first.toString();
   }
 
-  // 🔐 2. Recreate wallet
-  final EthPrivateKey privateKey = EthPrivateKey.fromHex(pk);
-  final EthereumAddress userAddress =
-      await privateKey.extractAddress();
-
-  // 📜 3. Contract function
-  final function = _contract.function("login");
-
-  // 🔍 4. Call contract (no gas, read-only)
-  final result = await _client.call(
-    contract: _contract,
-    function: function,
-    params: [mobile, userAddress],
-  );
-
-  if (result.isEmpty) {
-    throw Exception("Login failed");
-  }
-
-  return result.first.toString();
-}
-  // MARK ATTENDANCE (UNCHANGED)
+  // MARK ATTENDANCE
   Future<String> markAttendance(String prn) async {
     await init();
 
     final function = _contract.function("markAttendance");
 
     final txHash = await _client.sendTransaction(
-      _credentials, // still admin (can upgrade later)
+      _credentials,
       Transaction.callContract(
         contract: _contract,
         function: function,
@@ -163,7 +152,7 @@ Future<String> loginByMobile(String mobile, String prn) async {
     return txHash;
   }
 
-  // VIEW ATTENDANCE (UNCHANGED)
+  // VIEW ATTENDANCE
   Future<List<DateTime>> viewAttendance(String prn) async {
     await init();
 
@@ -180,8 +169,34 @@ Future<String> loginByMobile(String mobile, String prn) async {
     List<dynamic> timestamps = result.first;
 
     return timestamps
-        .map<DateTime>((ts) =>
-            DateTime.fromMillisecondsSinceEpoch((ts as BigInt).toInt() * 1000))
+        .map<DateTime>(
+          (ts) => DateTime.fromMillisecondsSinceEpoch(
+            (ts as BigInt).toInt() * 1000,
+          ),
+        )
         .toList();
+  }
+
+  // MARK ATTENDANCE WITH SESSION
+  Future<String> markAttendanceWithSession(
+    String prn,
+    String sessionId,
+  ) async {
+    await init();
+
+    final function = _contract.function("markAttendanceWithSession");
+
+    final txHash = await _client.sendTransaction(
+      _credentials,
+      Transaction.callContract(
+        contract: _contract,
+        function: function,
+        parameters: [prn, sessionId],
+        maxGas: 200000,
+      ),
+      chainId: 1337,
+    );
+
+    return txHash;
   }
 }

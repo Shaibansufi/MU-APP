@@ -8,6 +8,24 @@
 			},
 			{
 				"internalType": "string",
+				"name": "sessionId",
+				"type": "string"
+			}
+		],
+		"name": "markAttendanceWithSession",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "prn",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
 				"name": "mobile",
 				"type": "string"
 			},
@@ -40,6 +58,30 @@
 		"name": "registerUser",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "attendance",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{

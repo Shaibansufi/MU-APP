@@ -30,7 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  flutter_blue_plus: ^1.35.0   # scanning
+  flutter_ble_peripheral: ^1.2.5   # advertising (Android)
+  permission_handler: ^11.0.1
   local_auth: ^2.1.6
   web3dart: ^2.7.1
   walletconnect_dart: ^0.0.11
