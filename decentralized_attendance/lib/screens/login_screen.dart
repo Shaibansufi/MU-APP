@@ -51,62 +51,71 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginUser() async {
-    if (!_formKey.currentState!.validate()) return;
+Future<void> _loginUser() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      // Step 1: Biometric Authentication
-      bool isAuthenticated = await BiometricService().authenticate();
-      if (!isAuthenticated) {
-        _showMessage("Biometric Authentication Failed");
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Step 2: Get Device ID from utils.dart
-      String deviceId = await getDeviceId();
-
-      // Step 3: Fetch PRN from blockchain using mobile + device
-      String mobile = _mobileController.text.trim();
-      print("Logging in with mobile: $mobile, deviceId: $deviceId"); // debug log
-
-      String prn = await widget.blockchainService.loginByMobile(
-        mobile,
-        deviceId, // <-- device-bound login
-      );
-
-      if (prn.isEmpty) {
-        _showMessage("Mobile number not registered ❌");
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Step 4: Navigate to Dashboard
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(
-            userName: mobile,
-            userId: prn,
-            role: "Student",
-          ),
-        ),
-      );
-    } catch (e) {
-      String errorMessage = e.toString();
-      if (errorMessage.contains("value out of range")) {
-        _showMessage(
-          "Blockchain decoding error.\nPlease restart the app and try again.",
-        );
-      } else {
-        _showMessage("Login Failed ❌\n$errorMessage");
-      }
+  try {
+    // 🔐 Step 1: Biometric Authentication
+    bool isAuthenticated = await BiometricService().authenticate();
+    if (!isAuthenticated) {
+      _showMessage("Biometric Authentication Failed");
+      setState(() => _isLoading = false);
+      return;
     }
 
-    setState(() => _isLoading = false);
+    String mobile = _mobileController.text.trim();
+    String prn = _prnCheckController.text.trim();
+
+    if (prn.isEmpty) {
+      _showMessage("Please enter PRN ❌");
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    print("Login with mobile: $mobile, PRN: $prn");
+
+    // 🔗 Step 2: Blockchain login (wallet-based)
+    String result = await widget.blockchainService.loginByMobile(
+      mobile,
+      prn,
+    );
+
+    // ❗ Step 3: Check result (IMPORTANT FIX)
+    if (result.isEmpty || result == "false") {
+      _showMessage("Invalid credentials ❌");
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // ✅ Step 4: Navigate
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DashboardScreen(
+          userName: mobile,
+          userId: prn,
+          role: "Student",
+        ),
+      ),
+    );
+  } catch (e) {
+    String errorMessage = e.toString();
+
+    if (errorMessage.contains("not registered")) {
+      _showMessage("User not found on this device ❌");
+    } else if (errorMessage.contains("value out of range")) {
+      _showMessage(
+        "Blockchain decoding error.\nRestart app and try again.",
+      );
+    } else {
+      _showMessage("Login Failed ❌\n$errorMessage");
+    }
   }
+
+  setState(() => _isLoading = false);
+}
 
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
